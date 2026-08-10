@@ -1,0 +1,12 @@
+{
+  "name": "orchestrating-parallel-workstreams",
+  "description": "Run one high-context orchestrator that fans out autonomous coding agents by dependency wave and gates every PR through multi-model adversarial review (Phase R / Phase G). Never auto-merges.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Logan Lamb",
+    "email": "logan@blinkbuild.ai"
+  },
+  "homepage": "https://github.com/Blink-Build-Studios/orchestrating-parallel-workstreams",
+  "repository": "https://github.com/Blink-Build-Studios/orchestrating-parallel-workstreams",
+  "license": "Unlicense"
+}

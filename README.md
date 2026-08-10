@@ -33,13 +33,44 @@ The runbook names **exact CLI flags and bus quirks that were true at a point in 
 
 ## Install
 
-Drop the directory into your Claude Code skills folder:
+This repo is both a standalone skill (`SKILL.md` at the root) **and** a self-contained Claude Code plugin marketplace (`.claude-plugin/`), so it installs several ways. Skills use the cross-tool [Agent Skills](https://code.claude.com/docs/en/skills) format, so both Claude Code and Codex can consume it.
 
-```sh
-git clone <this-repo> ~/.claude/skills/orchestrating-parallel-workstreams
+> The repo must be reachable by whoever installs it — public, or the user git-authed to a private repo. Every one-command path below needs that.
+
+### Claude Code — one command (plugin)
+
+```text
+/plugin marketplace add Blink-Build-Studios/orchestrating-parallel-workstreams
+/plugin install orchestrating-parallel-workstreams@orchestrating-parallel-workstreams
 ```
 
-Claude Code discovers it via `SKILL.md`'s frontmatter. Invoke it by describing an orchestration task, or by typing **"Phase R #N"** / **"Phase G #N"** at a PR.
+### Codex — one command
+
+Inside Codex, install from the GitHub repo with the skill installer:
+
+```text
+$skill-installer Blink-Build-Studios/orchestrating-parallel-workstreams
+```
+
+### Manual (either tool) — clone into the skills dir
+
+```sh
+# Claude Code
+git clone https://github.com/Blink-Build-Studios/orchestrating-parallel-workstreams.git \
+  ~/.claude/skills/orchestrating-parallel-workstreams
+
+# Codex CLI
+git clone https://github.com/Blink-Build-Studios/orchestrating-parallel-workstreams.git \
+  ~/.codex/skills/orchestrating-parallel-workstreams
+```
+
+### Cross-tool package manager
+
+```sh
+npx skills add Blink-Build-Studios/orchestrating-parallel-workstreams
+```
+
+Once installed, invoke it by describing an orchestration task, or by typing **"Phase R #N"** / **"Phase G #N"** at a PR.
 
 ## The core ideas (why it holds together)
 

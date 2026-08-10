@@ -1,0 +1,22 @@
+{
+  "name": "orchestrating-parallel-workstreams",
+  "description": "An AI staff-engineer orchestration skill: fan out autonomous coding agents by dependency wave and gate every PR through multi-model adversarial review (Phase R / Phase G), without auto-merging.",
+  "owner": {
+    "name": "Blink Build Studios",
+    "email": "logan@blinkbuild.ai"
+  },
+  "plugins": [
+    {
+      "name": "orchestrating-parallel-workstreams",
+      "source": "./",
+      "description": "Run one high-context orchestrator that fans out autonomous coding agents by dependency wave and gates every PR through multi-model adversarial review (Phase R / Phase G). Never auto-merges.",
+      "version": "1.0.0",
+      "category": "workflow",
+      "tags": ["orchestration", "multi-agent", "code-review", "git-worktrees", "phase-r", "phase-g"],
+      "author": {
+        "name": "Logan Lamb",
+        "email": "logan@blinkbuild.ai"
+      }
+    }
+  ]
+}
