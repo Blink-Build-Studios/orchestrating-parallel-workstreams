@@ -2,8 +2,7 @@
 
 A [Claude Code](https://code.claude.com) skill for running one **high-context orchestrator** that drives many autonomous coding agents — one per workstream, each in its own git worktree — from a master plan, pipelines their PRs through a multi-model adversarial review gate, and surfaces only the decisions that genuinely need a human. The orchestrator dispatches, verifies, adjudicates, and replans. **It does not implement, merge, or deploy.**
 
-> **Companion essay:** *"I Don't Manage Coding Agents. I Manage an AI Staff Engineer."* — <!-- TODO: link once published --> `https://blog.blinkbuild.ai/`
-> The essay is the *why* (the mental model — an AI staff engineer, not a swarm). This repo is the *how* (the operational doctrine and the runbook).
+**Companion essay** https://blog.blinkbuild.ai/i-built-the-loop-before-i-knew-it-had-a-name/
 
 ## What it is
 
