@@ -2,7 +2,7 @@
 
 Host-specific execution detail for spawning headless agents — implementers (step 2 of [the loop](SKILL.md)) and reviewers (the Phase-R gate) — and operating the multi-model gate on one machine. `SKILL.md` is the model-agnostic doctrine; **this file is the "how, on this box, right now."** The tool names (`hcom`, `claude`, `codex`, `agy`) and flags below were verified against specific tool builds at specific dates — **re-verify flags/paths against the live tools before relying on them**; CLIs drift.
 
-Notation: `<orch>` = the orchestrator's bus name. `$WT_BASE` = the directory that holds your review/worktree tree (no default is assumed; pass it explicitly). `<repo>` = `owner/name` for `gh`.
+Host-specific values (worktree base, approval-hook paths, review-bot identity, landing policy) come from the skill's optional `LOCAL.md` overlay — see SKILL.md "Host overlay". Notation: `<orch>` = the orchestrator's bus name. `$WT_BASE` = the directory that holds your review/worktree tree (no default is assumed; pass it explicitly). `<repo>` = `owner/name` for `gh`.
 
 ---
 

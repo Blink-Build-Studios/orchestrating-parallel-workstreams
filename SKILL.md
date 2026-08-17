@@ -17,6 +17,16 @@ This skill assumes an **agent bus** that can spawn headless CLI coding agents an
 
 **Not for:** a single small change, work needing no isolation, or anything you'll merge yourself immediately.
 
+## Host overlay — `LOCAL.md` (read it first if it exists)
+This skill carries **no site-specific values**. Everything that differs per machine/org lives in an optional **`LOCAL.md` in this skill's directory** (git-ignored here; copy [`LOCAL.example.md`](LOCAL.example.md) to start). **If `LOCAL.md` exists, read it before running any part of this skill** — it fills these slots, which the doctrine and runbook otherwise leave abstract:
+- **Worktree base** — `$WT_BASE` for `phase-r-spawn.sh` and the `_inspect` worktree (runbook §12).
+- **Approval hook** — the host's `PreToolUse` hook path, its on/off toggle, the allow-dirs file and what's already allow-listed, the in-the-moment unblock command (runbook §4).
+- **External review bot** — its name, the marker comment to poll for, the bot logins it posts under, who operates it, what its automated gate actually covers (runbook §11).
+- **Landing policy** — who lands what: whether the orchestrator lands integration-branch PRs (and under what check), who owns the integration branch's downstream (loop step 6).
+- **Writer model** — the preferred implementer model for the highest-stakes work and any standing rule about it (Phase R "+1 must be a different model").
+- **Repo CI quirks** — jobs that only run on trunk push, non-default feature flags tests hide behind, packages outside the default workspace scope (Phase R terminate condition; runbook §8.4).
+Anything not covered by a slot in `LOCAL.md` falls back to the generic guidance below.
+
 ## The loop
 1. **Ground in a master plan first.** It must carry: file:line anchors, a dependency graph, a wave schedule, locked decisions, and known gotchas. Read it fully before dispatching. No plan → write/extend one first.
 2. **One agent per workstream**, each: its own git worktree (off the integration branch), headless + autonomous, handed an **inline brief** = its ticket + the relevant plan section + DoD + a shared `_common.md` rules file (merge policy, DoD gate, gotchas). **Foundation/contract workstreams (shared wire formats, schemas) land/freeze FIRST** so dependents build against a fixed contract.
