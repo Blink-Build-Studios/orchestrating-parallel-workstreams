@@ -6,3 +6,6 @@
 *~
 .idea/
 .vscode/
+
+# Per-host overlay for this skill (see SKILL.md "Host overlay")
+LOCAL.md
