@@ -22,6 +22,23 @@
 #     wt_base  dir holding the worktrees (default: $PWD); the script expects
 #              <wt_base>/wt-<tag>-{claude,codex,agy}, each containing BRIEF.md
 #
+# Optional environment (host values belong in LOCAL.md, not here):
+#   PHASE_R_CLAUDE_MODEL     model passed as `--model` to EVERY claude reviewer this script
+#                            launches (the trio's claude + every extra reviewer below).
+#                            codex/agy are unaffected. Unset = the CLI's default.
+#   PHASE_R_EXTRA_REVIEWERS  space-separated `label[=abs-worktree-path]` entries. Each adds
+#                            ONE more claude reviewer that runs a review SKILL named in its
+#                            BRIEF.md (e.g. a repo's merge-gate skill) rather than the trio's
+#                            read-only-diff brief. Its worktree defaults to
+#                            <wt_base>/wt-<tag>-<label>; give a path when the skill's tooling
+#                            keys on it. Must contain BRIEF.md. Labels must not be
+#                            claude/codex/agy. Verdict file: REVIEW-<tag>-<label>.md, first
+#                            line VERDICT: READY | BLOCK | ESCALATE [(degraded: <stage>)].
+#                            An extra reviewer is an advisory 4th lens for the orchestrator's
+#                            adjudication, NOT part of the trio's 3/3 quorum.
+#   PHASE_R_DRY_RUN=1        print the hcom launch lines instead of executing them (no PID
+#                            lines are emitted). For checking prompts/paths/model wiring.
+#
 # Example:
 #   phase-r-spawn.sh orch1 acme/widgets 167 rev167 /path/to/worktrees
 set -euo pipefail
@@ -33,9 +50,30 @@ WT_CLAUDE="$WT_BASE/wt-$TAG-claude"
 WT_CODEX="$WT_BASE/wt-$TAG-codex"
 WT_AGY="$WT_BASE/wt-$TAG-agy"
 
+CLAUDE_MODEL="${PHASE_R_CLAUDE_MODEL:-}"
+DRY_RUN="${PHASE_R_DRY_RUN:-0}"
+
 # Pre-flight: a reviewer with no brief is useless — fail fast, clearly, before launching.
 for wt in "$WT_CLAUDE" "$WT_CODEX" "$WT_AGY"; do
   [ -f "$wt/BRIEF.md" ] || { echo "ERROR: missing $wt/BRIEF.md — create the worktrees + brief first" >&2; exit 1; }
+done
+
+# Extra skill-driven reviewers (PHASE_R_EXTRA_REVIEWERS): parse + pre-flight BEFORE any
+# launch, so a bad entry fails the whole gate cleanly instead of after three agents are up.
+# Parallel indexed arrays + a counter (bash 3.2-safe: no associative arrays, and no
+# "${arr[@]}" on a possibly-empty array under `set -u`).
+N_EXTRA=0
+for entry in ${PHASE_R_EXTRA_REVIEWERS:-}; do
+  label="${entry%%=*}"; path="${entry#*=}"
+  [ "$path" = "$entry" ] && path="$WT_BASE/wt-$TAG-$label"
+  case "$label" in
+    ""|*[!A-Za-z0-9_-]*) echo "ERROR: bad extra-reviewer label '$label' in PHASE_R_EXTRA_REVIEWERS (use [A-Za-z0-9_-])" >&2; exit 1 ;;
+    claude|codex|agy)    echo "ERROR: extra-reviewer label '$label' collides with the trio" >&2; exit 1 ;;
+  esac
+  case "$path" in /*) ;; *) echo "ERROR: extra reviewer '$label' worktree must be an ABSOLUTE path (got '$path')" >&2; exit 1 ;; esac
+  [ -f "$path/BRIEF.md" ] || { echo "ERROR: missing $path/BRIEF.md for extra reviewer '$label' — create the worktree + brief first" >&2; exit 1; }
+  EXTRA_LABEL[$N_EXTRA]="$label"; EXTRA_PATH[$N_EXTRA]="$path"
+  N_EXTRA=$((N_EXTRA + 1))
 done
 
 # Identity guard (see phase-r-runbook.md §9): reviewers report to @$ORCH, but the
@@ -77,31 +115,64 @@ agy_prompt() {
   printf '%s' "Your VERY FIRST action - before reading ANY file, before running hcom --help / hcom status / hcom list / hcom send --help - must be to run this EXACT command (it is already correct, do NOT verify it): hcom send @$ORCH --intent inform -- \"agy starting review of $REPO $PR\" . THEN read the file at this EXACT ABSOLUTE path - it is already correct, read it DIRECTLY and do NOT run find/ListDir to locate it: $WT_AGY/BRIEF.md . Follow it EXACTLY as a FRESH, INDEPENDENT, READ-ONLY reviewer of $REPO PR #$PR. Your worktree is $WT_AGY - use ABSOLUTE paths for every file you touch; do NOT assume your shell cwd is the worktree. STATIC review ONLY: do NOT run cargo/docker build or tests, do NOT checkout/edit/commit/push, do NOT write any file except your report, do NOT read or write anything outside $WT_AGY. Read the diff via: gh pr diff $PR --repo $REPO . Write your full review to $WT_AGY/REVIEW-$TAG-agy.md (first line: 'VERDICT: READY' or 'VERDICT: BLOCK'). Your FINAL action must be this EXACT command (already correct, do NOT verify it): hcom send @$ORCH --intent inform --file $WT_AGY/REVIEW-$TAG-agy.md . Do not merge."
 }
 
+# Skill-driven extra reviewer prompt (claude). Deliberately NOT the read-only-diff
+# profile: a review skill may legitimately build, run tests, create its own scratch
+# worktrees and spawn subagents — the BRIEF says exactly what is allowed. What is never
+# allowed: commit/push, touching any branch, or posting to the PR (the orchestrator
+# adjudicates first). Absolute paths throughout, same reason as agy.
+skill_prompt() {  # $1 = label  $2 = worktree (absolute)
+  printf '%s' "You are an INDEPENDENT reviewer for $REPO PR #$PR running a review SKILL, not a diff read. Read the brief at this EXACT ABSOLUTE path and follow it EXACTLY: $2/BRIEF.md . Your worktree is $2 - use ABSOLUTE paths. Work only there and in scratch worktrees the brief explicitly allows; you may run builds/tests and spawn subagents only as the brief allows. Do NOT commit or push anything, do NOT modify any branch, do NOT post to GitHub. Write your full report to $2/REVIEW-$TAG-$1.md (first line EXACTLY one of: 'VERDICT: READY' / 'VERDICT: BLOCK' / 'VERDICT: ESCALATE', optionally followed by ' (degraded: <stage>)'), then report it with this EXACT command: hcom send @$ORCH --intent inform --file $2/REVIEW-$TAG-$1.md . Do not merge."
+}
+
 LOGDIR="${TMPDIR:-/tmp}"
-launch() {  # $1=tool  $2=worktree  $3=autonomy-flag  $4=prompt  $5=label (for the PID line; defaults to $1)
+launch() {  # $1=tool  $2=worktree  $3=autonomy-flag  $4=prompt  $5=label (PID line + log name)  $6=model (optional; claude only)
+  local tool="$1" wt="$2" flag="$3" prompt="$4" label="$5" model="${6:-}"
+  if [ "$DRY_RUN" = "1" ]; then
+    printf 'DRY-RUN %s: hcom 1 %s --tag %s --dir %s --headless --hcom-prompt %q %s%s --go --name %s\n' \
+      "$label" "$tool" "$TAG" "$wt" "$prompt" "$flag" "${model:+ --model $model}" "$ORCH"
+    return 0
+  fi
   # nohup + redirect + </dev/null + & + disown: the launcher survives this script's exit
   # (no SIGHUP) and never blocks on stdin, so the spawn truly runs detached (#2).
-  nohup hcom 1 "$1" --tag "$TAG" --dir "$2" --headless --hcom-prompt "$4" "$3" --go --name "$ORCH" \
-    >"$LOGDIR/phase-r-$TAG-$1.log" 2>&1 </dev/null &
+  # `--model` only when set (bash 3.2: no empty-array expansion under set -u).
+  if [ -n "$model" ]; then
+    nohup hcom 1 "$tool" --tag "$TAG" --dir "$wt" --headless --hcom-prompt "$prompt" "$flag" --model "$model" --go --name "$ORCH" \
+      >"$LOGDIR/phase-r-$TAG-$label.log" 2>&1 </dev/null &
+  else
+    nohup hcom 1 "$tool" --tag "$TAG" --dir "$wt" --headless --hcom-prompt "$prompt" "$flag" --go --name "$ORCH" \
+      >"$LOGDIR/phase-r-$TAG-$label.log" 2>&1 </dev/null &
+  fi
   local pid=$!
   disown
   # Machine-parseable PID line: nohup execs hcom directly (no intermediate
   # fork), so $! captured immediately after the backgrounding `&` -- before
   # `disown` -- is the real hcom PID. A caller with no other way to bound
   # or stop a runaway reviewer (e.g. an external timeout supervisor) greps this.
-  echo "PID ${5:-$1} $pid"
+  echo "PID $label $pid"
 }
 
 # Fire all three CONCURRENTLY (#1); do not `wait` (#2).
-launch claude      "$WT_CLAUDE" --dangerously-skip-permissions              "$(common_prompt claude)" claude
+launch claude      "$WT_CLAUDE" --dangerously-skip-permissions              "$(common_prompt claude)" claude "$CLAUDE_MODEL"
 launch codex       "$WT_CODEX"  --dangerously-bypass-approvals-and-sandbox  "$(common_prompt codex)"  codex
 launch antigravity "$WT_AGY"    --dangerously-skip-permissions              "$(agy_prompt)"           agy
 
-echo "Phase-R gate launching (parallel + backgrounded, non-blocking) — $REPO #$PR  tag:$TAG -> @$ORCH"
+# Extra skill-driven reviewers (claude), same model knob, concurrently with the trio.
+i=0
+while [ "$i" -lt "$N_EXTRA" ]; do
+  launch claude "${EXTRA_PATH[$i]}" --dangerously-skip-permissions "$(skill_prompt "${EXTRA_LABEL[$i]}" "${EXTRA_PATH[$i]}")" "${EXTRA_LABEL[$i]}" "$CLAUDE_MODEL"
+  i=$((i + 1))
+done
+
+echo "Phase-R gate launching (parallel + backgrounded, non-blocking) — $REPO #$PR  tag:$TAG -> @$ORCH${CLAUDE_MODEL:+  (claude model: $CLAUDE_MODEL)}"
 echo "  claude      -> $WT_CLAUDE"
 echo "  codex       -> $WT_CODEX"
 echo "  antigravity -> $WT_AGY"
+i=0
+while [ "$i" -lt "$N_EXTRA" ]; do
+  printf '  %-11s -> %s  (skill reviewer, claude; advisory)\n' "${EXTRA_LABEL[$i]}" "${EXTRA_PATH[$i]}"
+  i=$((i + 1))
+done
 echo "Readiness pings arrive async on the bus ('all instances ready')."
-echo "VERDICTS: read them from $WT_BASE/wt-$TAG-*/REVIEW-$TAG-*.md — that FILE is the record;"
+echo "VERDICTS: read them from <each worktree>/REVIEW-$TAG-<label>.md — that FILE is the record;"
 echo "          the bus 'hcom send @$ORCH' is only a notification and drops silently on identity drift (runbook §9)."
-echo "Per-launcher logs: $LOGDIR/phase-r-$TAG-{claude,codex,antigravity}.log"
+echo "Per-launcher logs: $LOGDIR/phase-r-$TAG-<label>.log  (labels: claude codex agy${N_EXTRA:+ + extras})"

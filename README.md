@@ -86,7 +86,7 @@ The files name specific tools as a reference implementation, but the doctrine is
 
 - Swap `hcom` for your bus (the identity-drift and file-first-verdict lessons apply to any long-lived agent bus).
 - Swap the model roster; keep "3 fresh, independent, different-family reviewers."
-- `phase-r-spawn.sh` takes `<orch> <repo> <pr> <tag> [wt_base]` and expects worktrees at `<wt_base>/wt-<tag>-{claude,codex,agy}`; adjust paths/tools to taste.
+- `phase-r-spawn.sh` takes `<orch> <repo> <pr> <tag> [wt_base]` and expects worktrees at `<wt_base>/wt-<tag>-{claude,codex,agy}`; adjust paths/tools to taste. Optional env: `PHASE_R_CLAUDE_MODEL` (model for the claude reviewers), `PHASE_R_EXTRA_REVIEWERS="label[=abs-path] …"` (an advisory 4th reviewer that runs a review *skill* from its own BRIEF), `PHASE_R_DRY_RUN=1` (print launch lines only).
 - The approval-hook section (`§4` of the runbook) only applies if your host runs a `PreToolUse` approval hook — skip it otherwise.
 
 ## Status & warranty
