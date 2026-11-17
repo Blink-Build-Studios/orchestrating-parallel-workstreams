@@ -123,3 +123,25 @@ Some repos run a deep-review bot on every PR head (mutation/invariant analysis +
 
 ## 12. Orchestrator inspection hygiene — read source from a detached worktree, never a writer's
 Keep one **dedicated detached inspection worktree** (`git worktree add --detach $WT_BASE/_inspect <sha>`) and do all read-at-a-SHA there (`git -C $WT_BASE/_inspect checkout <sha> -- .`). In a tree you don't own, only zero-side-effect commands: `git show <sha>:<path>` (single-file reads — prefer it), `git diff <a> <b> -- <path>`, `git log`. `git checkout <sha> -- .` / `restore` / `reset` in a live writer's worktree writes into its index+worktree and stages a reversal of its head across every changed file. If you did it anyway: tell the WRITER to restore the affected paths (`git checkout <realhead> -- <files>`) — never edit their live tree yourself — and own the error explicitly.
+
+## 13. Other forges — GitLab command map
+The doctrine and the sections above use GitHub's words and `gh`. Nothing in the method depends on GitHub; these are the equivalents. **Status: written from the `glab` and GitLab API documentation, not yet run against a live GitLab project — verify each on first use and correct this table.** `<P>` = the project (`-R group/project`, or URL-encoded `group%2Fproject` in API paths); `<N>` = the merge request number (iid).
+
+| What the skill needs | GitHub | GitLab |
+|---|---|---|
+| The unit under review | pull request (PR) | merge request (MR) |
+| Read the diff | `gh pr diff <N> --repo <R>` | `glab mr diff <N> -R <P>` |
+| Head SHA + state | `gh pr view <N> --json headRefOid,state` | `glab api projects/<P>/merge_requests/<N>` → `.sha`, `.state` |
+| Conflicts with base | `mergeable` = `CONFLICTING` | same call → `.has_conflicts`, `.detailed_merge_status` |
+| CI result for the head | `gh pr checks <N>` / `statusCheckRollup` | same call → `.head_pipeline.status` (`success` is the only green; `skipped`, `manual`, `canceled` and a null pipeline are NOT green); jobs: `glab ci view` / `glab api projects/<P>/pipelines/<id>/jobs` |
+| All review threads resolved | `gh api graphql` reviewThreads | same call → `.blocking_discussions_resolved`; detail: `glab api projects/<P>/merge_requests/<N>/discussions` (a note with `resolvable: true, resolved: false` is open) |
+| Comments (poll a review bot's marker) | `gh api repos/<o>/<r>/issues/<N>/comments` | `glab api projects/<P>/merge_requests/<N>/notes?per_page=100` (paginate) |
+| Open a PR/MR | `gh pr create --base <b> --head <h>` | `glab mr create --source-branch <h> --target-branch <b>` |
+| Reviewer prompt diff command | default | `PHASE_R_DIFF_CMD="glab mr diff <N> -R <P>"` |
+
+Things that differ in kind, not just in spelling:
+- **Pin the gate to `.sha`, and compare it to each review worktree's `HEAD` before spawning** — same rule as GitHub, different field.
+- **A pipeline can be absent.** An MR with no pipeline (rules excluded it, or CI minutes ran out) shows no failure. Treat "no pipeline for this SHA" as red, exactly like an empty checks list.
+- **Merge method is a project setting** (merge commit, semi-linear, fast-forward only; squash is a separate per-project option). Record it in `LOCAL.md` before advising squash vs merge commit — fast-forward-only projects force a rebase, which changes SHAs that dependents may have pinned.
+- **Approvals can reset on push** (project setting). An agent pushing under the human's credentials may remove the human's own approval; check the setting before any post-approval push.
+- **Stacked MRs:** set each MR's target branch to its dependency's branch; GitLab retargets to the default branch when the dependency merges and its branch is deleted only if that project option is on — confirm rather than assume.

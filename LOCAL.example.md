@@ -33,6 +33,11 @@ Copy to `LOCAL.md` in this directory (git-ignored) and fill in what applies. The
 - Verdict mapping: <skill's verdicts → READY / BLOCK / ESCALATE; what "degraded" means for this skill>.
 - BRIEF: see orchestration-templates.md "Skill-driven extra reviewer brief"; keep a cheap plumbing-test variant for acceptance after gate changes.
 
+## Forge
+- Code host: <GitHub | GitLab (gitlab.com | self-hosted URL) | other>; CLI: <gh | glab>; logged in as <account>.
+- If not GitHub: `PHASE_R_DIFF_CMD="<e.g. glab mr diff <mr> -R <group/project>>"` in the shell that runs the gate, and use the runbook §13 command map.
+- Merge method the project allows: <merge commit | squash | fast-forward only>; does a push reset approvals? <yes/no>.
+
 ## Repo CI quirks
 - <repo>: <e.g. deploy/build/smoke job runs only on trunk push — PR checks may not exercise the change>.
 - <repo>: <e.g. tests behind non-default feature `X`; sub-workspace `Y/` excluded from `--workspace`>.
