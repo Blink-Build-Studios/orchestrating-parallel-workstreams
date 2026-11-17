@@ -67,6 +67,7 @@ Read `_common.md` first. This adds WS-X specifics.
 ---
 
 ## Phase-R review brief (per reviewer)
+Before spawning, copy `reference/reviewer-checklist.md` into each review worktree next to `BRIEF.md`; reviewers may not read outside their worktree, and the brief refers to the copy as `./reviewer-checklist.md`.
 ```markdown
 # Phase R review — WS-X — <title>
 You are a FRESH, independent reviewer in a multi-model consensus gate.
@@ -89,6 +90,9 @@ You are a FRESH, independent reviewer in a multi-model consensus gate.
 Every finding cites `file:line` you actually read. Hold the other two claim types to the SAME bar:
 - **A prescribed fix must cite the code that makes it work.** "Do X instead" with nothing anchored is a hypothesis — label it one. Findings are checkable; the remedies bolted onto them usually aren't, and that asymmetry is where a confident review goes wrong.
 - **Never assert absence or unreachability from a diff-local search.** "X isn't possible / doesn't exist / was never meant to work" is a claim about the whole system, but you only read the increment. Either search wider and say what scope you searched, or downgrade it to "I did not find X in <scope>."
+
+## Before you write the verdict
+Read the reviewer checklist at `./reviewer-checklist.md` (in your worktree, next to this brief) and apply it: what your verdict may claim, the evidence it must carry, and the defect classes a diff read misses.
 
 ## Style
 Root each finding in the spec/plan and in works-vs-doesn't. Be collaborative; credit what the PR got right. No model/process meta (no "as an AI", "in this round", "the other reviewer") — the author should see a clean technical review.
