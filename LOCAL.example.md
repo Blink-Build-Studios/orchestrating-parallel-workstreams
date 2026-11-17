@@ -9,7 +9,7 @@ Copy to `LOCAL.md` in this directory (git-ignored) and fill in what applies. The
 ## Approval hook (if the host has one)
 - Hook: <path, matcher>; toggle: <file>; per-session allow cache: <file>.
 - Allow-dirs file: <path>; already allow-listed: <dirs>.
-- Unblock a stuck agent now: <command>.
+- A stuck approval prompt is the human's to answer; otherwise respawn the agent under an allow-listed `--dir`.
 
 ## External review bot (if the repo runs one)
 - Name: <bot>; marker comment: `<!-- … -->`; posts under: <login1>, <login2>.
@@ -32,6 +32,21 @@ Copy to `LOCAL.md` in this directory (git-ignored) and fill in what applies. The
 - Cadence: <every gate | Phase R always + Phase G round 0 and final | opt-in>; wait bound: <minutes> (past it: report pending, never drop).
 - Verdict mapping: <skill's verdicts → READY / BLOCK / ESCALATE; what "degraded" means for this skill>.
 - BRIEF: see orchestration-templates.md "Skill-driven extra reviewer brief"; keep a cheap plumbing-test variant for acceptance after gate changes.
+
+## Autonomy settings (ask the human once; conservative default applies until answered)
+The twelve questions are in `reference/briefs-and-decisions.md`, "Per-host autonomy settings". Record each answer here by number, in the human's words, with the date.
+- 1 Decisions during a run: <surface and wait | decide, log, keep moving>
+- 2 Starting needed work: <ask first | start and report>
+- 3 Follow-ups on the program's own changes: <ask | do and report>
+- 4 Honouring a constraint just stated: <ask | act and report>
+- 5 Landing authority: <orchestrator lands nothing | lands integration-branch changes under <checks>>
+- 6 Replying to review bots: <per-reply approval | standing-authorised>
+- 7 Stacked changes: <default | forbidden>
+- 8 Gating trivial changes: <always full gate | classes that may skip: …>
+- 9 Threat model default: <adversarial | trusted-colleague tools>
+- 10 Other people's changes: <never touch | …>
+- 11 Trackers and chat: <draft only | may post>
+- 12 Where tests run: <CI full, local targeted | local full first>
 
 ## Forge
 - Code host: <GitHub | GitLab (gitlab.com | self-hosted URL) | other>; CLI: <gh | glab>; logged in as <account>.
