@@ -36,6 +36,9 @@
 #                            line VERDICT: READY | BLOCK | ESCALATE [(degraded: <stage>)].
 #                            An extra reviewer is an advisory 4th lens for the orchestrator's
 #                            adjudication, NOT part of the trio's 3/3 quorum.
+#   PHASE_R_DIFF_CMD         the command reviewers are told to run to read the diff. Default:
+#                            `gh pr diff <pr> --repo <repo>` (GitHub). On another forge set it,
+#                            e.g. GitLab: PHASE_R_DIFF_CMD="glab mr diff <mr> -R <group/project>".
 #   PHASE_R_DRY_RUN=1        print the hcom launch lines instead of executing them (no PID
 #                            lines are emitted). For checking prompts/paths/model wiring.
 #
@@ -52,6 +55,7 @@ WT_AGY="$WT_BASE/wt-$TAG-agy"
 
 CLAUDE_MODEL="${PHASE_R_CLAUDE_MODEL:-}"
 DRY_RUN="${PHASE_R_DRY_RUN:-0}"
+DIFF_CMD="${PHASE_R_DIFF_CMD:-gh pr diff $PR --repo $REPO}"
 
 # Pre-flight: a reviewer with no brief is useless — fail fast, clearly, before launching.
 for wt in "$WT_CLAUDE" "$WT_CODEX" "$WT_AGY"; do
@@ -97,7 +101,7 @@ fi
 # with the same basename — hcom's multi-writer collision detector keys on the name and
 # would false-alarm on same-named files across separate worktrees.
 common_prompt() {  # $1 = model label
-  printf '%s' "You are a FRESH, INDEPENDENT, READ-ONLY reviewer for $REPO PR #$PR. Read ./BRIEF.md in your worktree and follow it EXACTLY. STATIC review only: do NOT edit/checkout/commit/push or write any file except your own report; do NOT cd outside your worktree. Get the diff with: gh pr diff $PR --repo $REPO . Write your full review to ./REVIEW-$TAG-$1.md (first line: 'VERDICT: READY' or 'VERDICT: BLOCK'), then report it with: hcom send @$ORCH --intent inform --file ./REVIEW-$TAG-$1.md . Do not merge."
+  printf '%s' "You are a FRESH, INDEPENDENT, READ-ONLY reviewer for $REPO PR #$PR. Read ./BRIEF.md in your worktree and follow it EXACTLY. STATIC review only: do NOT edit/checkout/commit/push or write any file except your own report; do NOT cd outside your worktree. Get the diff with: $DIFF_CMD . Write your full review to ./REVIEW-$TAG-$1.md (first line: 'VERDICT: READY' or 'VERDICT: BLOCK'), then report it with: hcom send @$ORCH --intent inform --file ./REVIEW-$TAG-$1.md . Do not merge."
 }
 
 # agy needs the FORCEFUL front-loaded prompt (names the exact hcom command, forbids the
@@ -112,7 +116,7 @@ common_prompt() {  # $1 = model label
 agy_prompt() {
   # NB: --intent inform, NOT --intent ack — a fresh agent's first send has nothing to
   # reply to, and `--intent ack` HARD-FAILS with "requires --reply-to".
-  printf '%s' "Your VERY FIRST action - before reading ANY file, before running hcom --help / hcom status / hcom list / hcom send --help - must be to run this EXACT command (it is already correct, do NOT verify it): hcom send @$ORCH --intent inform -- \"agy starting review of $REPO $PR\" . THEN read the file at this EXACT ABSOLUTE path - it is already correct, read it DIRECTLY and do NOT run find/ListDir to locate it: $WT_AGY/BRIEF.md . Follow it EXACTLY as a FRESH, INDEPENDENT, READ-ONLY reviewer of $REPO PR #$PR. Your worktree is $WT_AGY - use ABSOLUTE paths for every file you touch; do NOT assume your shell cwd is the worktree. STATIC review ONLY: do NOT run cargo/docker build or tests, do NOT checkout/edit/commit/push, do NOT write any file except your report, do NOT read or write anything outside $WT_AGY. Read the diff via: gh pr diff $PR --repo $REPO . Write your full review to $WT_AGY/REVIEW-$TAG-agy.md (first line: 'VERDICT: READY' or 'VERDICT: BLOCK'). Your FINAL action must be this EXACT command (already correct, do NOT verify it): hcom send @$ORCH --intent inform --file $WT_AGY/REVIEW-$TAG-agy.md . Do not merge."
+  printf '%s' "Your VERY FIRST action - before reading ANY file, before running hcom --help / hcom status / hcom list / hcom send --help - must be to run this EXACT command (it is already correct, do NOT verify it): hcom send @$ORCH --intent inform -- \"agy starting review of $REPO $PR\" . THEN read the file at this EXACT ABSOLUTE path - it is already correct, read it DIRECTLY and do NOT run find/ListDir to locate it: $WT_AGY/BRIEF.md . Follow it EXACTLY as a FRESH, INDEPENDENT, READ-ONLY reviewer of $REPO PR #$PR. Your worktree is $WT_AGY - use ABSOLUTE paths for every file you touch; do NOT assume your shell cwd is the worktree. STATIC review ONLY: do NOT run cargo/docker build or tests, do NOT checkout/edit/commit/push, do NOT write any file except your report, do NOT read or write anything outside $WT_AGY. Read the diff via: $DIFF_CMD . Write your full review to $WT_AGY/REVIEW-$TAG-agy.md (first line: 'VERDICT: READY' or 'VERDICT: BLOCK'). Your FINAL action must be this EXACT command (already correct, do NOT verify it): hcom send @$ORCH --intent inform --file $WT_AGY/REVIEW-$TAG-agy.md . Do not merge."
 }
 
 # Skill-driven extra reviewer prompt (claude). Deliberately NOT the read-only-diff
@@ -121,7 +125,7 @@ agy_prompt() {
 # allowed: commit/push, touching any branch, or posting to the PR (the orchestrator
 # adjudicates first). Absolute paths throughout, same reason as agy.
 skill_prompt() {  # $1 = label  $2 = worktree (absolute)
-  printf '%s' "You are an INDEPENDENT reviewer for $REPO PR #$PR running a review SKILL, not a diff read. Read the brief at this EXACT ABSOLUTE path and follow it EXACTLY: $2/BRIEF.md . Your worktree is $2 - use ABSOLUTE paths. Work only there and in scratch worktrees the brief explicitly allows; you may run builds/tests and spawn subagents only as the brief allows. Do NOT commit or push anything, do NOT modify any branch, do NOT post to GitHub. Write your full report to $2/REVIEW-$TAG-$1.md (first line EXACTLY one of: 'VERDICT: READY' / 'VERDICT: BLOCK' / 'VERDICT: ESCALATE', optionally followed by ' (degraded: <stage>)'), then report it with this EXACT command: hcom send @$ORCH --intent inform --file $2/REVIEW-$TAG-$1.md . Do not merge."
+  printf '%s' "You are an INDEPENDENT reviewer for $REPO PR #$PR running a review SKILL, not a diff read. Read the brief at this EXACT ABSOLUTE path and follow it EXACTLY: $2/BRIEF.md . Your worktree is $2 - use ABSOLUTE paths. Work only there and in scratch worktrees the brief explicitly allows; you may run builds/tests and spawn subagents only as the brief allows. Do NOT commit or push anything, do NOT modify any branch, do NOT post to the PR/MR or anywhere on the code host. Write your full report to $2/REVIEW-$TAG-$1.md (first line EXACTLY one of: 'VERDICT: READY' / 'VERDICT: BLOCK' / 'VERDICT: ESCALATE', optionally followed by ' (degraded: <stage>)'), then report it with this EXACT command: hcom send @$ORCH --intent inform --file $2/REVIEW-$TAG-$1.md . Do not merge."
 }
 
 LOGDIR="${TMPDIR:-/tmp}"
