@@ -23,6 +23,16 @@ Copy to `LOCAL.md` in this directory (git-ignored) and fill in what applies. The
 ## Writer model
 - Preferred implementer for consensus/security/state-machine work: <model>; +1-fresh reviewer must then be a different model.
 
+## Gate reviewer model (optional)
+- `PHASE_R_CLAUDE_MODEL=<model>` — `phase-r-spawn.sh` passes it as `--model` to every claude reviewer it launches (the trio's claude + extra reviewers). Unset = the CLI default. Mirror it in the runbook §5 in-process fallback (`model:`).
+
+## Extra skill-driven reviewer (optional advisory 4th lens)
+- `PHASE_R_EXTRA_REVIEWERS="<label>[=<abs worktree path>] …"` — each label adds one claude reviewer that runs a review SKILL named in its BRIEF.md (a repo's merge-gate skill, a deep-review bot you can run locally) instead of the diff brief. Path default `$WT_BASE/wt-<tag>-<label>`; set it when the skill's tooling keys on the path.
+- Per-PR setup: <worktree at PR head, BRIEF, any container/toolchain the skill needs, approval-hook allow-list>.
+- Cadence: <every gate | Phase R always + Phase G round 0 and final | opt-in>; wait bound: <minutes> (past it: report pending, never drop).
+- Verdict mapping: <skill's verdicts → READY / BLOCK / ESCALATE; what "degraded" means for this skill>.
+- BRIEF: see orchestration-templates.md "Skill-driven extra reviewer brief"; keep a cheap plumbing-test variant for acceptance after gate changes.
+
 ## Repo CI quirks
 - <repo>: <e.g. deploy/build/smoke job runs only on trunk push — PR checks may not exercise the change>.
 - <repo>: <e.g. tests behind non-default feature `X`; sub-workspace `Y/` excluded from `--workspace`>.

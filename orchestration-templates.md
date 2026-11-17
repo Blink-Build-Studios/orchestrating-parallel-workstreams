@@ -106,6 +106,34 @@ NON-BLOCKING: <optional; do NOT gate>
 
 ---
 
+## Skill-driven extra reviewer brief (optional advisory 4th lens — `PHASE_R_EXTRA_REVIEWERS`)
+For a reviewer that runs a review *skill* (a merge-gate with an invariant suite, a deep-review bot you can run locally) instead of reading the diff. It may legitimately build, test, create scratch worktrees and spawn subagents — so say exactly what is allowed; the trio's read-only brief does not fit it.
+```markdown
+# <Skill> review — <repo> PR #<pr> — tag <tag>
+You are the <skill> reviewer in a multi-model gate: you run the `<skill>` skill; the other reviewers read the diff. Report to @<orch>.
+
+## Run
+Invoke `<skill>` with: <exact invocation>. Follow its flow end to end; do not downgrade to a lighter mode.
+
+## Allowed
+- Your worktree `<abs path>` is the PR-head checkout. <Scratch worktrees it may create, where, created FROM your worktree — never from the integrator's or the main checkout.>
+- <Builds/tests it may run and how they are routed/sandboxed; if the toolchain is missing: mark that stage `degraded`, continue.>
+- <Whether it may mutate source in scratch worktrees (restore after) and spawn subagents.>
+
+## Forbidden
+- Commit/push; modifying any branch or checkout outside your scratch worktrees; `git fetch`.
+- Posting to the PR in any form — the orchestrator adjudicates first.
+- Reading/writing outside your worktrees, except <the skill's own install> and `gh` reads.
+
+## Report — the FILE is the verdict of record; the send is only a notification
+1. Write `<abs path>/REVIEW-<tag>-<label>.md`. First line exactly one of `VERDICT: READY` / `VERDICT: BLOCK` / `VERDICT: ESCALATE` (<map the skill's verdicts; ESCALATE = a human call, not an auto-block>), append ` (degraded: <stage>)` if any stage did not run. Then the skill's decision, findings with `file:line` + evidence, advisory items, what was truncated/degraded.
+2. `hcom send @<orch> --intent inform --file <abs path>/REVIEW-<tag>-<label>.md`
+3. Clean up scratch worktrees, then stop.
+Style: as the Phase-R brief (spec-rooted, works-vs-doesn't, no model/process meta).
+```
+
+---
+
 ## `STATUS.md` skeleton (the live tracker + human handoff)
 ```markdown
 # <Project> — Orchestration STATUS
